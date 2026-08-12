@@ -640,9 +640,11 @@ function renderCoinDialog(game) {
     const availableReflip = selectedReflipCard || reflipCardFromHand || reflipCardSnapshot;
     els.coinReflip.classList.remove("hidden");
     els.coinReflip.disabled = !availableReflip;
-    els.coinReflip.dataset.cardId = selectedReflipCard?.id || reflipCardFromHand?.id || reflipCardSnapshot?.id || "";
+    const chosenId = selectedReflipCard?.id || reflipCardFromHand?.id || reflipCardSnapshot?.id || "";
+    els.coinReflip.dataset.cardId = chosenId;
     els.coinReflip.textContent = "Use Re-Flip now";
     els.coinReflipHelp.textContent = availableReflip ? "Play it directly from this dialog. It is discarded automatically and the coin is tossed again—no separate validation is needed." : "You do not have a Re-Flip card.";
+    console.debug("renderCoinDialog: availableReflip:", Boolean(availableReflip), "selectedReflipCardId:", selectedReflipCard?.id, "reflipCardFromHandId:", reflipCardFromHand?.id, "reflipCardSnapshotId:", reflipCardSnapshot?.id, "dataset.cardId:", els.coinReflip.dataset.cardId, "debugReflipPlayerId:", state.debugReflipPlayerId);
     const updateCountdown = () => {
       const remaining = Math.max(0, game.pending.resolvesAt - Date.now());
       els.coinCountdown.textContent = (remaining / 1000).toFixed(1);
