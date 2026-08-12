@@ -627,11 +627,20 @@ function renderCoinDialog(game) {
       els.coinReflipPlayer.innerHTML = game.players.map((player) => `<option value="${esc(player.id)}" ${player.id === (state.debugReflipPlayerId || state.debugPlayerId) ? "selected" : ""}>${esc(player.name)}</option>`).join("");
       els.coinReflipPlayer.value = state.debugReflipPlayerId || state.debugPlayerId || "";
     }
+    // Determine if Re-Flip is available for the active snapshot or for the
+    // selected debug actor. Prefer the selected debug actor when present.
+    const reflipCard = game.hand.find((card) => card.kind === "action" && card.side === "reflip");
+    let selectedReflipCard = null;
+    if (state.debug && state.debugReflipPlayerId && state.server) {
+      const serverPlayer = state.server.players.find((p) => p.id === state.debugReflipPlayerId);
+      selectedReflipCard = serverPlayer?.hand.find((card) => card.kind === "action" && card.side === "reflip");
+    }
+    const availableReflip = selectedReflipCard || reflipCard;
     els.coinReflip.classList.remove("hidden");
-    els.coinReflip.disabled = !reflipCard;
-    els.coinReflip.dataset.cardId = reflipCard?.id || "";
+    els.coinReflip.disabled = !availableReflip;
+    els.coinReflip.dataset.cardId = selectedReflipCard?.id || reflipCard?.id || "";
     els.coinReflip.textContent = "Use Re-Flip now";
-    els.coinReflipHelp.textContent = reflipCard ? "Play it directly from this dialog. It is discarded automatically and the coin is tossed again—no separate validation is needed." : "You do not have a Re-Flip card.";
+    els.coinReflipHelp.textContent = availableReflip ? "Play it directly from this dialog. It is discarded automatically and the coin is tossed again—no separate validation is needed." : "You do not have a Re-Flip card.";
     const updateCountdown = () => {
       const remaining = Math.max(0, game.pending.resolvesAt - Date.now());
       els.coinCountdown.textContent = (remaining / 1000).toFixed(1);
@@ -937,7 +946,7 @@ document.querySelectorAll("[data-rules]").forEach((button) => button.onclick = (
 document.querySelectorAll("[data-close-dialog]").forEach((button) => button.onclick = () => button.closest("dialog").close());
 els.rulesDialog.onclick = (event) => { if (event.target === els.rulesDialog) els.rulesDialog.close(); };
 // Allow choosing the dialog actor when debugging
-if (els.coinReflipPlayer) els.coinReflipPlayer.onchange = () => { state.debugReflipPlayerId = els.coinReflipPlayer.value; };
+if (els.coinReflipPlayer) els.coinReflipPlayer.onchange = () => { state.debugReflipPlayerId = els.coinReflipPlayer.value; render(); };
 
 
 (async function initialise() {
