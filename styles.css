@@ -13,6 +13,7 @@ input,select { width:100%; border:1px solid var(--line); border-radius:.65rem; p
 #app { width:min(1180px,100%); margin:auto; padding:1rem; }
 .loading,.panel { border:1px solid var(--line); border-radius:1rem; padding:1rem; background:rgba(255,253,244,.92); box-shadow:0 12px 30px rgba(37,67,48,.12); }
 .brand { display:flex; align-items:center; gap:.8rem; margin-bottom:1rem; }
+.version { font-size:0.65rem; color:var(--ink); opacity:0.75; font-weight:700; margin-left:.45rem; vertical-align:baseline; }
 .brand-mark { display:grid; place-items:center; width:3rem; height:3rem; border-radius:50%; background:#fff; font-size:1.7rem; }
 h1,h2,h3,p { margin-top:0; }
 h1 { margin-bottom:.2rem; font-size:clamp(1.6rem,4vw,2.7rem); line-height:1; }

@@ -20,6 +20,12 @@ const els = {
   playAgainButton: $("#playAgainButton"), gameOverLeaveButton: $("#gameOverLeaveButton"), floatingTooltip: $("#floatingTooltip")
 };
 
+// Build/version tag: ISO timestamp used as the static build version displayed next to the title.
+const BUILD_VERSION = new Date().toISOString();
+const setBuildVersion = () => { const el = $("#appVersion"); if (el) el.textContent = BUILD_VERSION; };
+// Set immediately (script is a module loaded at end of body, so DOM is present).
+setBuildVersion();
+
 const BASIC_COLORS = ["white", "orange", "magenta", "cyan", "yellow", "lime", "pink", "grey", "beige", "mint", "purple", "blue", "brown", "green", "red", "black"];
 const COLORS = {
   white: "#f7f4e8", orange: "#ef7b32", magenta: "#df4f91", cyan: "#28bdd2", yellow: "#f3c847", lime: "#9acb45",
