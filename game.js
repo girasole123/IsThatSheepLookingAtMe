@@ -613,7 +613,7 @@ function renderCoinDialog(game) {
     const opponent = game.players.find((player) => player.id === game.pending.targetId);
     // Every player receives the pending challenge in their snapshot, so this
     // modal—and the Re-Flip action—appears for everyone at the table.
-    const reflipCard = game.hand.find((card) => card.kind === "action" && card.side === "reflip");
+    const reflipCardSnapshot = game.hand.find((card) => card.kind === "action" && card.side === "reflip");
     const challengeName = CARD_NAMES[game.pending.effect] || "Challenge";
     const chosenIssue = game.pending.guess === "head" ? "looking sheep (head)" : "sheep butt";
     els.coinDialogTitle.textContent = challengeName;
@@ -629,13 +629,13 @@ function renderCoinDialog(game) {
     }
     // Determine if Re-Flip is available for the active snapshot or for the
     // selected debug actor. Prefer the selected debug actor when present.
-    const reflipCard = game.hand.find((card) => card.kind === "action" && card.side === "reflip");
+    const reflipCardFromHand = game.hand.find((card) => card.kind === "action" && card.side === "reflip");
     let selectedReflipCard = null;
     if (state.debug && state.debugReflipPlayerId && state.server) {
       const serverPlayer = state.server.players.find((p) => p.id === state.debugReflipPlayerId);
       selectedReflipCard = serverPlayer?.hand.find((card) => card.kind === "action" && card.side === "reflip");
     }
-    const availableReflip = selectedReflipCard || reflipCard;
+    const availableReflip = selectedReflipCard || reflipCardFromHand || reflipCardSnapshot;
     els.coinReflip.classList.remove("hidden");
     els.coinReflip.disabled = !availableReflip;
     els.coinReflip.dataset.cardId = selectedReflipCard?.id || reflipCard?.id || "";
