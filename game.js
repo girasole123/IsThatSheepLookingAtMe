@@ -11,7 +11,7 @@ const els = {
   deckCount: $("#deckCount"), discardCount: $("#discardCount"), selectionHelp: $("#selectionHelp"),
   guessWrap: $("#guessWrap"), coinGuess: $("#coinGuess"), drawButton: $("#drawButton"), playButton: $("#playButton"),
   validateChallenge: $("#validateChallenge"), discardButton: $("#discardButton"), clearButton: $("#clearButton"), baaButton: $("#baaButton"), hand: $("#hand"), handTitleText: $("#handTitleText"), handCount: $("#handCount"), leaveGame: $("#leaveGame"),
-  debugPlayerCount: $("#debugPlayerCount"), startDebug: $("#startDebug"), debugPerspectiveWrap: $("#debugPerspectiveWrap"), debugPerspective: $("#debugPerspective"),
+  debugPlayerCount: $("#debugPlayerCount"), startDebug: $("#startDebug"), debugPerspectiveWrap: $("#debugPerspectiveWrap"), debugPerspective: $("#debugPerspective"), debugActorWrap: $("#debugActorWrap"), debugActor: $("#debugActor"),
   discardDialog: $("#discardDialog"), discardCards: $("#discardCards"), discardHelp: $("#discardHelp"), confirmRecoverSelection: $("#confirmRecoverSelection"),
   challengeSelectionDialog: $("#challengeSelectionDialog"), challengeSelectionTitle: $("#challengeSelectionTitle"), challengeSelectionHelp: $("#challengeSelectionHelp"),
   challengeSelectionSheep: $("#challengeSelectionSheep"), confirmChallengeSelection: $("#confirmChallengeSelection"),
@@ -221,6 +221,7 @@ function startDebugGame() {
   state.debug = true;
   state.joinOrder = roster.map((player) => player.id);
   state.debugPlayerId = roster[0].id;
+  state.debugReflipPlayerId = roster[0].id;
   state.joined = false;
   state.room = null;
   state.hostId = roster[0].id;
@@ -548,8 +549,10 @@ function renderGame() {
   }).join("");
   els.fields.innerHTML = game.players.map((player) => `<section class="field ${player.id === activePlayerId() ? "me" : ""}" data-player-id="${esc(player.id)}"><header><div class="field-player-line"><strong>${esc(player.name)} ${player.id === activePlayerId() ? "(you)" : ""}</strong><span class="field-hand-count">${player.handCount} card${player.handCount === 1 ? "" : "s"} in hand</span></div>${game.phase === "finished" ? `<span class="field-score">${playerScore(player)} pts</span>` : ""}</header><div class="flock">${player.field.length ? player.field.map((sheep) => sheepHtml(sheep, player.id)).join("") : "<span class='muted'>No sheep yet.</span>"}</div></section>`).join("");
   els.debugPerspectiveWrap.classList.toggle("hidden", !state.debug);
+  els.debugActorWrap.classList.toggle("hidden", !state.debug);
   if (state.debug) {
     els.debugPerspective.innerHTML = state.server.players.map((player) => `<option value="${esc(player.id)}" ${player.id === state.debugPlayerId ? "selected" : ""}>${esc(player.name)}</option>`).join("");
+    els.debugActor.innerHTML = state.server.players.map((player) => `<option value="${esc(player.id)}" ${player.id === (state.debugReflipPlayerId || state.debugPlayerId) ? "selected" : ""}>${esc(player.name)}</option>`).join("");
   }
   els.deckCount.textContent = `Draw pile: ${game.deckCount}`; els.discardCount.textContent = `Discard: ${game.discardCount}`;
   renderCoinDialog(game);
@@ -871,6 +874,7 @@ els.joinRoom.onclick = joinRoom;
 els.startGame.onclick = startGame;
 els.startDebug.onclick = startDebugGame;
 els.debugPerspective.onchange = () => { state.debugPlayerId = els.debugPerspective.value; state.selectedCards = []; state.selectedSheep = []; state.selectedHalves = {}; state.selectedDiscard = []; state.selectedYoink = []; state.selectedTarget = ""; state.snapshot = snapshotFor(state.debugPlayerId); render(); };
+els.debugActor.onchange = () => { state.debugReflipPlayerId = els.debugActor.value; render(); };
 els.copyRoom.onclick = async () => { const room = els.roomName.value.trim(); if (!room) return setNotice("Enter a room code first.", true); await navigator.clipboard.writeText(room); setNotice("Room code copied."); };
 els.drawButton.onclick = () => command("DRAW");
 els.playButton.onclick = () => { const selected = state.snapshot.hand.filter((card) => state.selectedCards.includes(card.id)); const type = state.snapshot.pending && selected[0]?.side === "reflip" ? "REFLIP" : "PLAY"; command(type, { cardIds: state.selectedCards, sheepIds: state.selectedSheep, halfChoices: state.selectedHalves, discardIds: state.selectedDiscard, targetId: state.selectedTarget, guess: els.coinGuess.value }); clearSelection(); };
@@ -893,19 +897,25 @@ els.confirmYoinkSelection.onclick = () => {
 };
 els.coinReflip.onclick = () => {
   if (!state.snapshot?.pending || els.coinReflip.disabled) return;
+  // Allow selecting a different debug actor to play the Re-Flip card.
+  const actorIdToUse = state.debug && state.debugReflipPlayerId ? state.debugReflipPlayerId : activePlayerId();
+  const actorSnapshot = snapshotFor(actorIdToUse);
   const cardId = els.coinReflip.dataset.cardId;
-  const reflipCard = state.snapshot.hand.find((card) => card.id === cardId && card.kind === "action" && card.side === "reflip");
+  const reflipCard = actorSnapshot.hand.find((card) => card.id === cardId && card.kind === "action" && card.side === "reflip");
   if (!reflipCard) return;
   els.coinReflip.disabled = true;
-  // Deselect any existing selection first so the Re-Flip plays cleanly.
-  // Then select the Re-Flip card and trigger the same validation handler
-  // used by the in-UI "Validate" button so the play executes automatically
-  // from the coin dialog.
+  // Temporarily switch the debug actor (so activePlayerId() reflects the chosen actor)
+  let previousDebugPlayerId = null;
+  if (state.debug) { previousDebugPlayerId = state.debugPlayerId; state.debugPlayerId = actorIdToUse; }
+  // Update the snapshot to the chosen actor and clear current selections.
+  state.snapshot = actorSnapshot;
   clearSelection();
   state.selectedCards = [reflipCard.id];
   render();
-  // Use the validate handler to perform the play as if the player validated it.
+  // Trigger the same validation handler to play the Re-Flip as that actor.
   els.validateChallenge.click();
+  // Restore previous debug player context and snapshot.
+  if (state.debug) { state.debugPlayerId = previousDebugPlayerId || actorIdToUse; state.snapshot = snapshotFor(state.debugPlayerId); render(); }
 };
 els.playAgainButton.onclick = () => command("PLAY_AGAIN");
 els.gameOverLeaveButton.onclick = () => location.reload();
