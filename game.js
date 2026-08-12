@@ -7,7 +7,7 @@ const els = {
   playerCount: $("#playerCount"), startGame: $("#startGame"), startHelp: $("#startHelp"), rulesDialog: $("#rulesDialog"),
   turnTitle: $("#turnTitle"), gameNotice: $("#gameNotice"), statusPills: $("#statusPills"), fields: $("#fields"),
   coinDialog: $("#coinDialog"), coinDialogTitle: $("#coinDialogTitle"), coinDialogMatchup: $("#coinDialogMatchup"), coin: $("#coin"), coinResultText: $("#coinResultText"),
-  coinCountdownWrap: $("#coinCountdownWrap"), coinCountdown: $("#coinCountdown"), coinCountdownBar: $("#coinCountdownBar"), coinReflip: $("#coinReflip"), coinReflipHelp: $("#coinReflipHelp"),
+  coinCountdownWrap: $("#coinCountdownWrap"), coinCountdown: $("#coinCountdown"), coinCountdownBar: $("#coinCountdownBar"), coinReflipPlayerWrap: $("#coinReflipPlayerWrap"), coinReflipPlayer: $("#coinReflipPlayer"), coinReflip: $("#coinReflip"), coinReflipHelp: $("#coinReflipHelp"),
   deckCount: $("#deckCount"), discardCount: $("#discardCount"), selectionHelp: $("#selectionHelp"),
   guessWrap: $("#guessWrap"), coinGuess: $("#coinGuess"), drawButton: $("#drawButton"), playButton: $("#playButton"),
   validateChallenge: $("#validateChallenge"), discardButton: $("#discardButton"), clearButton: $("#clearButton"), baaButton: $("#baaButton"), hand: $("#hand"), handTitleText: $("#handTitleText"), handCount: $("#handCount"), leaveGame: $("#leaveGame"),
@@ -20,11 +20,6 @@ const els = {
   playAgainButton: $("#playAgainButton"), gameOverLeaveButton: $("#gameOverLeaveButton"), floatingTooltip: $("#floatingTooltip")
 };
 
-// Build/version tag: ISO timestamp used as the static build version displayed next to the title.
-const BUILD_VERSION = new Date().toISOString();
-const setBuildVersion = () => { const el = $("#appVersion"); if (el) el.textContent = BUILD_VERSION; };
-// Set immediately (script is a module loaded at end of body, so DOM is present).
-setBuildVersion();
 
 const BASIC_COLORS = ["white", "orange", "magenta", "cyan", "yellow", "lime", "pink", "grey", "beige", "mint", "purple", "blue", "brown", "green", "red", "black"];
 const COLORS = {
@@ -625,6 +620,13 @@ function renderCoinDialog(game) {
     els.coinDialogMatchup.textContent = `${challengeName}: ${CARD_DESCRIPTIONS[game.pending.effect]} ${challenger?.name || "A player"} challenged ${opponent?.name || "an opponent"} and chose ${chosenIssue}.`;
     els.coinResultText.textContent = `Coin result: ${face === "head" ? "looking sheep (head)" : "sheep butt"}`;
     els.coinCountdownWrap.classList.remove("hidden");
+    // Show a per-dialog actor selector in debug mode so testers can choose which
+    // debug player should play the Re-Flip card.
+    els.coinReflipPlayerWrap.classList.toggle("hidden", !state.debug);
+    if (state.debug) {
+      els.coinReflipPlayer.innerHTML = game.players.map((player) => `<option value="${esc(player.id)}" ${player.id === (state.debugReflipPlayerId || state.debugPlayerId) ? "selected" : ""}>${esc(player.name)}</option>`).join("");
+      els.coinReflipPlayer.value = state.debugReflipPlayerId || state.debugPlayerId || "";
+    }
     els.coinReflip.classList.remove("hidden");
     els.coinReflip.disabled = !reflipCard;
     els.coinReflip.dataset.cardId = reflipCard?.id || "";
@@ -934,6 +936,9 @@ document.addEventListener("pointerdown", () => ensureAudio(), { once: true });
 document.querySelectorAll("[data-rules]").forEach((button) => button.onclick = () => els.rulesDialog.showModal());
 document.querySelectorAll("[data-close-dialog]").forEach((button) => button.onclick = () => button.closest("dialog").close());
 els.rulesDialog.onclick = (event) => { if (event.target === els.rulesDialog) els.rulesDialog.close(); };
+// Allow choosing the dialog actor when debugging
+if (els.coinReflipPlayer) els.coinReflipPlayer.onchange = () => { state.debugReflipPlayerId = els.coinReflipPlayer.value; };
+
 
 (async function initialise() {
   try {
