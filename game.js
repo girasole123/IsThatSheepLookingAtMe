@@ -921,6 +921,10 @@ els.coinReflip.onclick = () => {
   const reflipCard = actorSnapshot.hand.find((card) => card.id === cardId && card.kind === "action" && card.side === "reflip");
   if (!reflipCard) return;
   els.coinReflip.disabled = true;
+  // Stop the local countdown UI immediately to avoid race conditions.
+  clearInterval(state.coinCountdownTimer);
+  state.coinCountdownTimer = null;
+  if (els.coinCountdown) els.coinCountdown.textContent = "";
   // Temporarily switch the debug actor (so activePlayerId() reflects the chosen actor)
   let previousDebugPlayerId = null;
   if (state.debug) { previousDebugPlayerId = state.debugPlayerId; state.debugPlayerId = actorIdToUse; }
@@ -929,8 +933,8 @@ els.coinReflip.onclick = () => {
   clearSelection();
   state.selectedCards = [reflipCard.id];
   render();
-  // Trigger the same validation handler to play the Re-Flip as that actor.
-  els.validateChallenge.click();
+  // Send REFLIP command directly so the server processes it as a re-flip immediately.
+  command("REFLIP", { cardIds: [reflipCard.id] });
   // Restore previous debug player context and snapshot.
   if (state.debug) { state.debugPlayerId = previousDebugPlayerId || actorIdToUse; state.snapshot = snapshotFor(state.debugPlayerId); render(); }
 };
