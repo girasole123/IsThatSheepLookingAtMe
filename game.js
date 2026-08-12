@@ -269,7 +269,7 @@ function removeCards(hand, ids) { const cards = hand.filter((card) => ids.includ
 function findSheepRef(id) { for (const player of state.server.players) { const index = player.field.findIndex((sheep) => sheep.id === id); if (index >= 0) return { player, index, sheep: player.field[index] }; } return null; }
 
 function handleCommand(senderId, type, data) {
-  const game = state.server; console.debug("handleCommand: from", senderId, "type:", type, "data:", data, "serverPlayersHands:", game?.players?.map((p) => ({ id: p.id, hand: p.hand.map((c) => c.id) }))); const actor = findServerPlayer(senderId); if (!actor) return;
+  const game = state.server; try { console.debug("handleCommand: from", senderId, "type:", type, "data:", data, "serverPlayersHands:", JSON.stringify(game?.players?.map((p) => ({ id: p.id, hand: p.hand.map((c) => c.id) })))); } catch (e) { console.debug("handleCommand: failed stringify", e); } const actor = findServerPlayer(senderId); if (!actor) return;
   if (type === "PLAY_AGAIN" && game.phase === "finished") { if (senderId !== game.hostId) return hostNotice("Only the room host can start another game.", true); return createGame(game.players.map(({ id, name }) => ({ id, name }))); }
   if (game.phase !== "playing") return;
   const current = game.players[game.turnIndex];
@@ -649,7 +649,9 @@ function renderCoinDialog(game) {
     els.coinReflip.textContent = "Use Re-Flip now";
     els.coinReflipHelp.textContent = availableReflip ? "Play it directly from this dialog. It is discarded automatically and the coin is tossed again—no separate validation is needed." : "You do not have a Re-Flip card.";
     console.debug("renderCoinDialog: availableReflip:", Boolean(availableReflip), "selectedReflipCardId:", selectedReflipCard?.id, "reflipCardFromHandId:", reflipCardFromHand?.id, "reflipCardSnapshotId:", reflipCardSnapshot?.id, "dataset.cardId:", els.coinReflip.dataset.cardId, "debugReflipPlayerId:", state.debugReflipPlayerId);
-    if (!availableReflip && state.server) console.debug("renderCoinDialog: serverPlayersHands:", state.server.players.map((p) => ({ id: p.id, hand: p.hand.map((c) => c.id) })));
+    if (!availableReflip && state.server) {
+      try { console.debug("renderCoinDialog: serverPlayersHands:", JSON.stringify(state.server.players.map((p) => ({ id: p.id, hand: p.hand.map((c) => c.id) })))); } catch (e) { console.debug("renderCoinDialog: failed stringify", e); }
+    }
     const updateCountdown = () => {
       const remaining = Math.max(0, game.pending.resolvesAt - Date.now());
       els.coinCountdown.textContent = (remaining / 1000).toFixed(1);
