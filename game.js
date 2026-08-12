@@ -812,7 +812,26 @@ function selectionMessage(cards, game) {
   return "This selection is not a valid move yet.";
 }
 function bindDynamic() {
-  document.querySelectorAll("[data-card-id]").forEach((button) => button.onclick = () => { const id = button.dataset.cardId; state.selectedCards = state.selectedCards.includes(id) ? state.selectedCards.filter((item) => item !== id) : [...state.selectedCards, id]; state.selectedTarget = ""; state.selectedSheep = []; state.selectedHalves = {}; state.selectedDiscard = []; state.selectedYoink = []; render(); });
+  document.querySelectorAll("[data-card-id]").forEach((button) => button.onclick = () => {
+    const id = button.dataset.cardId;
+    const wasSelected = state.selectedCards.includes(id);
+    state.selectedCards = wasSelected ? state.selectedCards.filter((item) => item !== id) : [...state.selectedCards, id];
+    state.selectedTarget = ""; state.selectedSheep = []; state.selectedHalves = {}; state.selectedDiscard = []; state.selectedYoink = [];
+    // If a Re-Flip card was just selected during a pending coin toss, auto-play it
+    const card = state.snapshot?.hand.find((c) => c.id === id);
+    if (!wasSelected && state.snapshot?.pending && card && card.kind === "action" && card.side === "reflip") {
+      // Deselect all and select only this card
+      state.selectedCards = [id];
+      // Stop countdown UI and send REFLIP immediately
+      clearInterval(state.coinCountdownTimer); state.coinCountdownTimer = null; if (els.coinCountdown) els.coinCountdown.textContent = "";
+      console.debug("card click auto-playing reflip from hand as", activePlayerId(), "cardId:", id);
+      command("REFLIP", { cardIds: [id] });
+      // Clear selection to match validation behavior
+      clearSelection();
+      return;
+    }
+    render();
+  });
   document.querySelectorAll("[data-challenge-target]").forEach((button) => button.onclick = () => { state.selectedTarget = button.dataset.challengeTarget; state.selectedSheep = []; state.selectedHalves = {}; render(); });
   document.querySelectorAll("[data-player-id]").forEach((field) => field.onclick = (event) => {
     if (event.target.closest("[data-sheep-id]")) return;
