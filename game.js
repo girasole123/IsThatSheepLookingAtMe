@@ -382,11 +382,13 @@ function bodySwap(actor, handCard, ref) {
 }
 
 function playReflip(actor, data) {
+  console.debug("playReflip invoked for actor", actor?.id, "data:", data);
   const game = state.server; if (!game.pending) return hostNotice("There is no coin to re-flip.", true, actor.id);
   if (Date.now() >= game.pending.resolvesAt) return hostNotice("The Re-Flip window has closed.", true, actor.id);
   const cardId = Array.isArray(data.cardIds) ? data.cardIds[0] : null;
+  console.debug("playReflip: looking for cardId", cardId, "in actor.hand", actor.hand.map(c=>c.id));
   const card = actor.hand.find((item) => item.id === cardId && item.kind === "action" && item.side === "reflip");
-  if (!card) return hostNotice("You do not have that Re-Flip card.", true, actor.id);
+  if (!card) { console.debug("playReflip: card not found on actor.hand"); return hostNotice("You do not have that Re-Flip card.", true, actor.id); }
   actor.hand.splice(actor.hand.indexOf(card), 1); game.discard.push(card);
   const previousCoin = game.pending.coin;
   game.pending.coin = Math.random() < .5 ? "head" : "butt";
@@ -916,10 +918,11 @@ els.coinReflip.onclick = () => {
   if (!state.snapshot?.pending || els.coinReflip.disabled) return;
   // Allow selecting a different debug actor to play the Re-Flip card.
   const actorIdToUse = state.debug && state.debugReflipPlayerId ? state.debugReflipPlayerId : activePlayerId();
+  console.debug("coinReflip.clicked, actorToUse:", actorIdToUse, "dataset.cardId:", els.coinReflip.dataset.cardId, "debugReflipPlayerId:", state.debugReflipPlayerId);
   const actorSnapshot = snapshotFor(actorIdToUse);
   const cardId = els.coinReflip.dataset.cardId;
   const reflipCard = actorSnapshot.hand.find((card) => card.id === cardId && card.kind === "action" && card.side === "reflip");
-  if (!reflipCard) return;
+  if (!reflipCard) { console.debug("No reflip card found in snapshot for actor", actorIdToUse); return; }
   els.coinReflip.disabled = true;
   // Stop the local countdown UI immediately to avoid race conditions.
   clearInterval(state.coinCountdownTimer);
@@ -933,6 +936,7 @@ els.coinReflip.onclick = () => {
   clearSelection();
   state.selectedCards = [reflipCard.id];
   render();
+  console.debug("Sending REFLIP command as", activePlayerId(), "cardId:", reflipCard.id);
   // Send REFLIP command directly so the server processes it as a re-flip immediately.
   command("REFLIP", { cardIds: [reflipCard.id] });
   // Restore previous debug player context and snapshot.
