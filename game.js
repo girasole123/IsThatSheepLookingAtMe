@@ -898,7 +898,27 @@ els.debugPerspective.onchange = () => { state.debugPlayerId = els.debugPerspecti
 els.debugActor.onchange = () => { state.debugReflipPlayerId = els.debugActor.value; render(); };
 els.copyRoom.onclick = async () => { const room = els.roomName.value.trim(); if (!room) return setNotice("Enter a room code first.", true); await navigator.clipboard.writeText(room); setNotice("Room code copied."); };
 els.drawButton.onclick = () => command("DRAW");
-els.playButton.onclick = () => { const selected = state.snapshot.hand.filter((card) => state.selectedCards.includes(card.id)); const type = state.snapshot.pending && selected[0]?.side === "reflip" ? "REFLIP" : "PLAY"; command(type, { cardIds: state.selectedCards, sheepIds: state.selectedSheep, halfChoices: state.selectedHalves, discardIds: state.selectedDiscard, targetId: state.selectedTarget, guess: els.coinGuess.value }); clearSelection(); };
+els.playButton.onclick = () => {
+    const selected = state.snapshot.hand.filter((card) => state.selectedCards.includes(card.id));
+    const isReflipPlay = state.snapshot.pending && selected[0]?.side === "reflip";
+    if (isReflipPlay) {
+      const reflipCard = selected[0] || state.snapshot.hand.find((c) => c.kind === "action" && c.side === "reflip");
+      if (!reflipCard) return setNotice("No Re-Flip card available.", true);
+      // Deselect everything and select only the Re-Flip card
+      clearSelection();
+      state.selectedCards = [reflipCard.id];
+      // Stop local countdown UI immediately
+      clearInterval(state.coinCountdownTimer); state.coinCountdownTimer = null;
+      if (els.coinCountdown) els.coinCountdown.textContent = "";
+      console.debug("auto-playing reflip from hand as", activePlayerId(), "cardId:", reflipCard.id);
+      command("REFLIP", { cardIds: [reflipCard.id] });
+      clearSelection();
+      return;
+    }
+    const type = "PLAY";
+    command(type, { cardIds: state.selectedCards, sheepIds: state.selectedSheep, halfChoices: state.selectedHalves, discardIds: state.selectedDiscard, targetId: state.selectedTarget, guess: els.coinGuess.value });
+    clearSelection();
+  };
 els.validateChallenge.onclick = () => { command("PLAY", { cardIds: state.selectedCards, sheepIds: state.selectedSheep, halfChoices: state.selectedHalves, discardIds: state.selectedDiscard, targetId: state.selectedTarget, guess: els.coinGuess.value }); clearSelection(); };
 els.discardButton.onclick = () => { command("DISCARD", { cardIds: state.selectedCards }); clearSelection(); };
 els.clearButton.onclick = clearSelection;
