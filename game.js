@@ -824,8 +824,23 @@ function bindDynamic() {
       state.selectedCards = [id];
       // Stop countdown UI and send REFLIP immediately
       clearInterval(state.coinCountdownTimer); state.coinCountdownTimer = null; if (els.coinCountdown) els.coinCountdown.textContent = "";
-      console.debug("card click auto-playing reflip from hand as", activePlayerId(), "cardId:", id);
+      // Determine which actor should send this REFLIP (in debug, the card may belong to another debug player)
+      let actorToUse = activePlayerId();
+      if (state.debug && state.server) {
+        const owner = state.server.players.find((p) => p.hand.some((c) => c.id === id));
+        if (owner) actorToUse = owner.id;
+        else if (state.debugReflipPlayerId) actorToUse = state.debugReflipPlayerId;
+      }
+      console.debug("card click auto-playing reflip, intendedActor:", actorToUse, "currentActive:", activePlayerId(), "cardId:", id);
+      // Temporarily switch debugPlayerId so command() runs with the intended actor identity
+      let previousDebugPlayerId = null;
+      if (state.debug) { previousDebugPlayerId = state.debugPlayerId; state.debugPlayerId = actorToUse; }
+      // Ensure snapshot reflects the actor and clear UI selections
+      state.snapshot = snapshotFor(actorToUse);
+      render();
       command("REFLIP", { cardIds: [id] });
+      // Restore debug context
+      if (state.debug) { state.debugPlayerId = previousDebugPlayerId || actorToUse; state.snapshot = snapshotFor(state.debugPlayerId); render(); }
       // Clear selection to match validation behavior
       clearSelection();
       return;
