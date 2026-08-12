@@ -259,13 +259,17 @@ function broadcastState() {
   if (!state.debug) for (const player of state.server.players) send({ type: "STATE", hostId: state.hostId, target: player.id, snapshot: snapshotFor(player.id) });
   state.snapshot = snapshotFor(activePlayerId()); state.notice = state.server.notice; state.error = Boolean(state.server.noticeError); playSnapshotCue(state.snapshot); render();
 }
-function command(command, data = {}) { const senderId = activePlayerId(); if (!state.server || !isHost()) send({ type: "COMMAND", command, data }); else handleCommand(senderId, command, data); }
+function command(command, data = {}) {
+  const senderId = activePlayerId();
+  console.debug("command(): senderId:", senderId, "command:", command, "data:", data, "isHost:", isHost());
+  if (!state.server || !isHost()) send({ type: "COMMAND", command, data }); else handleCommand(senderId, command, data);
+}
 function findServerPlayer(id) { return state.server.players.find((player) => player.id === id); }
 function removeCards(hand, ids) { const cards = hand.filter((card) => ids.includes(card.id)); if (cards.length !== ids.length) return null; for (const id of ids) hand.splice(hand.findIndex((card) => card.id === id), 1); return cards; }
 function findSheepRef(id) { for (const player of state.server.players) { const index = player.field.findIndex((sheep) => sheep.id === id); if (index >= 0) return { player, index, sheep: player.field[index] }; } return null; }
 
 function handleCommand(senderId, type, data) {
-  const game = state.server; const actor = findServerPlayer(senderId); if (!actor) return;
+  const game = state.server; console.debug("handleCommand: from", senderId, "type:", type, "data:", data, "serverPlayersHands:", game?.players?.map((p) => ({ id: p.id, hand: p.hand.map((c) => c.id) }))); const actor = findServerPlayer(senderId); if (!actor) return;
   if (type === "PLAY_AGAIN" && game.phase === "finished") { if (senderId !== game.hostId) return hostNotice("Only the room host can start another game.", true); return createGame(game.players.map(({ id, name }) => ({ id, name }))); }
   if (game.phase !== "playing") return;
   const current = game.players[game.turnIndex];
@@ -645,6 +649,7 @@ function renderCoinDialog(game) {
     els.coinReflip.textContent = "Use Re-Flip now";
     els.coinReflipHelp.textContent = availableReflip ? "Play it directly from this dialog. It is discarded automatically and the coin is tossed again—no separate validation is needed." : "You do not have a Re-Flip card.";
     console.debug("renderCoinDialog: availableReflip:", Boolean(availableReflip), "selectedReflipCardId:", selectedReflipCard?.id, "reflipCardFromHandId:", reflipCardFromHand?.id, "reflipCardSnapshotId:", reflipCardSnapshot?.id, "dataset.cardId:", els.coinReflip.dataset.cardId, "debugReflipPlayerId:", state.debugReflipPlayerId);
+    if (!availableReflip && state.server) console.debug("renderCoinDialog: serverPlayersHands:", state.server.players.map((p) => ({ id: p.id, hand: p.hand.map((c) => c.id) })));
     const updateCountdown = () => {
       const remaining = Math.max(0, game.pending.resolvesAt - Date.now());
       els.coinCountdown.textContent = (remaining / 1000).toFixed(1);
