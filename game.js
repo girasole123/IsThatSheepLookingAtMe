@@ -835,59 +835,88 @@ function bindDynamic() {
     };
   });
 
-  document.querySelectorAll("[data-sheep-id]").forEach((button) => {
-    button.onclick = (event) => {
-      event.stopPropagation();
+document.querySelectorAll("[data-sheep-id]").forEach((button) => {
+  button.onclick = (event) => {
+    event.stopPropagation();
 
-      const id = button.dataset.sheepId;
-      const ownerId = button.dataset.ownerId;
-      const selected = state.snapshot.hand.filter((card) =>
-        state.selectedCards.includes(card.id)
+    const sheepId = button.dataset.sheepId;
+    const ownerId = button.dataset.ownerId;
+
+    const selected = state.snapshot.hand.filter((card) =>
+      state.selectedCards.includes(card.id)
+    );
+
+    const clickedHalf = event.target.closest("[data-half-card-id]");
+
+    const choosingHalvePart =
+      selected.length === 1 &&
+      selected[0].kind === "challenge" &&
+      selected[0].effect === "halve2" &&
+      ownerId === state.selectedTarget;
+
+    if (
+      choosingHalvePart &&
+      state.selectedSheep.includes(sheepId) &&
+      clickedHalf
+    ) {
+      state.selectedHalves[sheepId] =
+        clickedHalf.dataset.halfCardId;
+
+      return render();
+    }
+
+    // Wheat et Wolf doivent cibler exactement un mouton
+    // appartenant à un adversaire.
+    const needsOneOpponentSheep =
+      selected.length === 1 &&
+      ["wheat", "wolf"].includes(selected[0].side);
+
+    if (
+      needsOneOpponentSheep &&
+      ownerId === activePlayerId()
+    ) {
+      return setNotice(
+        "Choose a sheep in an opponent's field.",
+        true
       );
-      const clickedHalf = event.target.closest("[data-half-card-id]");
+    }
 
-      const choosingHalvePart =
-        selected.length === 1 &&
-        selected[0].kind === "challenge" &&
-        selected[0].effect === "halve2" &&
-        ownerId === state.selectedTarget;
+    state.selectedTarget = ownerId;
 
-      if (
-        choosingHalvePart &&
-        state.selectedSheep.includes(id) &&
-        clickedHalf
-      ) {
-        state.selectedHalves[id] = clickedHalf.dataset.halfCardId;
-        return render();
+    if (needsOneOpponentSheep) {
+      state.selectedSheep =
+        state.selectedSheep.includes(sheepId)
+          ? []
+          : [sheepId];
+
+      state.selectedHalves = {};
+
+      return render();
+    }
+
+    // BodySwap et les challenges utilisent la sélection générique.
+    // BodySwap peut cibler un mouton dans n'importe quel champ,
+    // y compris celui du joueur actif.
+    const removing =
+      state.selectedSheep.includes(sheepId);
+
+    state.selectedSheep = removing
+      ? state.selectedSheep.filter((id) => id !== sheepId)
+      : [...state.selectedSheep, sheepId].slice(-2);
+
+    if (removing || !state.selectedSheep.includes(sheepId)) {
+      delete state.selectedHalves[sheepId];
+    }
+
+    for (const selectedSheepId of Object.keys(state.selectedHalves)) {
+      if (!state.selectedSheep.includes(selectedSheepId)) {
+        delete state.selectedHalves[selectedSheepId];
       }
+    }
 
-      const needsOneOpponentSheep =
-        selected.length === 1 &&
-        ["wheat", "wolf"].includes(selected[0].side);
-
-      if (
-        needsOneOpponentSheep &&
-        ownerId === activePlayerId()
-      ) {
-        return setNotice(
-          "Choose a sheep in an opponent's field.",
-          true
-        );
-      }
-
-      state.selectedTarget = ownerId;
-
-      if (state.selectedSheep.includes(id)) {
-        state.selectedSheep = state.selectedSheep.filter(
-          (item) => item !== id
-        );
-      } else {
-        state.selectedSheep = [id];
-      }
-
-      render();
-    };
-  });
+    render();
+  };
+});
 
   document.querySelectorAll("[data-half-card-id]").forEach((button) => {
     button.onclick = (event) => {
