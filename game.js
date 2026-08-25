@@ -820,6 +820,33 @@ function bindDynamic() {
     render();
   });
 }
+function submitSelectedMove() {
+  const snapshot = state.snapshot;
+  if (!snapshot) return;
+
+  const selected = snapshot.hand.filter((card) =>
+    state.selectedCards.includes(card.id)
+  );
+  if (!selected.length) return;
+
+  const isReflip =
+    Boolean(snapshot.pending) &&
+    selected.length === 1 &&
+    selected[0].kind === "action" &&
+    selected[0].side === "reflip";
+
+  command(isReflip ? "REFLIP" : "PLAY", {
+    cardIds: state.selectedCards,
+    sheepIds: state.selectedSheep,
+    halfChoices: state.selectedHalves,
+    discardIds: state.selectedDiscard,
+    targetId: state.selectedTarget,
+    guess: els.coinGuess.value
+  });
+
+  clearSelection();
+}
+
 function clearSelection() { state.selectedCards = []; state.selectedSheep = []; state.selectedHalves = {}; state.selectedDiscard = []; state.selectedYoink = []; state.selectedTarget = ""; render(); }
 
 function hideFloatingTooltip() {
@@ -873,8 +900,8 @@ els.startDebug.onclick = startDebugGame;
 els.debugPerspective.onchange = () => { state.debugPlayerId = els.debugPerspective.value; state.selectedCards = []; state.selectedSheep = []; state.selectedHalves = {}; state.selectedDiscard = []; state.selectedYoink = []; state.selectedTarget = ""; state.snapshot = snapshotFor(state.debugPlayerId); render(); };
 els.copyRoom.onclick = async () => { const room = els.roomName.value.trim(); if (!room) return setNotice("Enter a room code first.", true); await navigator.clipboard.writeText(room); setNotice("Room code copied."); };
 els.drawButton.onclick = () => command("DRAW");
-els.playButton.onclick = () => { const selected = state.snapshot.hand.filter((card) => state.selectedCards.includes(card.id)); const type = state.snapshot.pending && selected[0]?.side === "reflip" ? "REFLIP" : "PLAY"; command(type, { cardIds: state.selectedCards, sheepIds: state.selectedSheep, halfChoices: state.selectedHalves, discardIds: state.selectedDiscard, targetId: state.selectedTarget, guess: els.coinGuess.value }); clearSelection(); };
-els.validateChallenge.onclick = () => { command("PLAY", { cardIds: state.selectedCards, sheepIds: state.selectedSheep, halfChoices: state.selectedHalves, discardIds: state.selectedDiscard, targetId: state.selectedTarget, guess: els.coinGuess.value }); clearSelection(); };
+els.playButton.onclick = submitSelectedMove;
+els.validateChallenge.onclick = submitSelectedMove;
 els.discardButton.onclick = () => { command("DISCARD", { cardIds: state.selectedCards }); clearSelection(); };
 els.clearButton.onclick = clearSelection;
 els.baaButton.onclick = () => command("BAA");
@@ -893,19 +920,27 @@ els.confirmYoinkSelection.onclick = () => {
 };
 els.coinReflip.onclick = () => {
   if (!state.snapshot?.pending || els.coinReflip.disabled) return;
+
   const cardId = els.coinReflip.dataset.cardId;
-  const reflipCard = state.snapshot.hand.find((card) => card.id === cardId && card.kind === "action" && card.side === "reflip");
+  const reflipCard = state.snapshot.hand.find(
+    (card) =>
+      card.id === cardId &&
+      card.kind === "action" &&
+      card.side === "reflip"
+  );
+
   if (!reflipCard) return;
+
   els.coinReflip.disabled = true;
-  // Deselect any existing selection first so the Re-Flip plays cleanly.
-  // Then select the Re-Flip card and trigger the same validation handler
-  // used by the in-UI "Validate" button so the play executes automatically
-  // from the coin dialog.
+
+  // Le re-flip doit être la seule carte sélectionnée.
   clearSelection();
   state.selectedCards = [reflipCard.id];
-  render();
-  // Use the validate handler to perform the play as if the player validated it.
-  els.validateChallenge.click();
+
+  // Ne pas utiliser HTMLElement.click() :
+  // le bouton Validate peut être disabled lorsqu'aucune cible
+  // de challenge n'est sélectionnée.
+  submitSelectedMove();
 };
 els.playAgainButton.onclick = () => command("PLAY_AGAIN");
 els.gameOverLeaveButton.onclick = () => location.reload();
