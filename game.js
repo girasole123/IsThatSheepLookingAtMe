@@ -788,37 +788,145 @@ function selectionMessage(cards, game) {
   return "This selection is not a valid move yet.";
 }
 function bindDynamic() {
-  document.querySelectorAll("[data-card-id]").forEach((button) => button.onclick = () => { const id = button.dataset.cardId; state.selectedCards = state.selectedCards.includes(id) ? state.selectedCards.filter((item) => item !== id) : [...state.selectedCards, id]; state.selectedTarget = ""; state.selectedSheep = []; state.selectedHalves = {}; state.selectedDiscard = []; state.selectedYoink = []; render(); });
-  document.querySelectorAll("[data-challenge-target]").forEach((button) => button.onclick = () => { state.selectedTarget = button.dataset.challengeTarget; state.selectedSheep = []; state.selectedHalves = {}; render(); });
-  document.querySelectorAll("[data-player-id]").forEach((field) => field.onclick = (event) => {
-    if (event.target.closest("[data-sheep-id]")) return;
-    const selected = state.snapshot.hand.filter((card) => state.selectedCards.includes(card.id));
-    if (selected.length === 1 && selected[0].kind === "challenge") return;
-    state.selectedTarget = field.dataset.playerId; render();
+  // Important : limiter ce sélecteur aux cartes de la main.
+  // Le bouton coinReflip possède aussi data-card-id, mais ne doit
+  // pas recevoir le gestionnaire de sélection des cartes.
+  document.querySelectorAll("#hand [data-card-id]").forEach((button) => {
+    button.onclick = () => {
+      const id = button.dataset.cardId;
+
+      state.selectedCards = state.selectedCards.includes(id)
+        ? state.selectedCards.filter((item) => item !== id)
+        : [...state.selectedCards, id];
+
+      state.selectedTarget = "";
+      state.selectedSheep = [];
+      state.selectedHalves = {};
+      state.selectedDiscard = [];
+      state.selectedYoink = [];
+
+      render();
+    };
   });
-  document.querySelectorAll("[data-sheep-id]").forEach((button) => button.onclick = (event) => {
-    event.stopPropagation();
-    const id = button.dataset.sheepId;
-    const ownerId = button.dataset.ownerId;
-    const selected = state.snapshot.hand.filter((card) => state.selectedCards.includes(card.id));
-    const clickedHalf = event.target.closest("[data-half-card-id]");
-    const choosingHalvePart = selected.length === 1 && selected[0].kind === "challenge" && selected[0].effect === "halve2" && ownerId === state.selectedTarget;
-    if (choosingHalvePart && state.selectedSheep.includes(id) && clickedHalf) {
-      state.selectedHalves[id] = clickedHalf.dataset.halfCardId;
-      return render();
-    }
-    const needsOneOpponentSheep = selected.length === 1 && ["wheat", "wolf"].includes(selected[0].side);
-    if (needsOneOpponentSheep && ownerId === activePlayerId()) return setNotice("Choose a sheep in an opponent's field.", true);
-    state.selectedTarget = ownerId;
-    if (needsOneOpponentSheep) state.selectedSheep = state.selectedSheep.includes(id) ? [] : [id];
-    else {
-      const removing = state.selectedSheep.includes(id);
-      state.selectedSheep = removing ? state.selectedSheep.filter((item) => item !== id) : [...state.selectedSheep, id].slice(-2);
-      if (removing || !state.selectedSheep.includes(id)) delete state.selectedHalves[id];
-      for (const sheepId of Object.keys(state.selectedHalves)) if (!state.selectedSheep.includes(sheepId)) delete state.selectedHalves[sheepId];
-    }
-    render();
+
+  document
+    .querySelectorAll("[data-challenge-target]")
+    .forEach((button) => {
+      button.onclick = () => {
+        state.selectedTarget = button.dataset.challengeTarget;
+        state.selectedSheep = [];
+        state.selectedHalves = {};
+        render();
+      };
+    });
+
+  document.querySelectorAll("[data-player-id]").forEach((field) => {
+    field.onclick = (event) => {
+      if (event.target.closest("[data-sheep-id]")) return;
+
+      const selected = state.snapshot.hand.filter((card) =>
+        state.selectedCards.includes(card.id)
+      );
+
+      if (selected.length === 1 && selected[0].kind === "challenge") return;
+
+      state.selectedTarget = field.dataset.playerId;
+      render();
+    };
   });
+
+  document.querySelectorAll("[data-sheep-id]").forEach((button) => {
+    button.onclick = (event) => {
+      event.stopPropagation();
+
+      const id = button.dataset.sheepId;
+      const ownerId = button.dataset.ownerId;
+      const selected = state.snapshot.hand.filter((card) =>
+        state.selectedCards.includes(card.id)
+      );
+      const clickedHalf = event.target.closest("[data-half-card-id]");
+
+      const choosingHalvePart =
+        selected.length === 1 &&
+        selected[0].kind === "challenge" &&
+        selected[0].effect === "halve2" &&
+        ownerId === state.selectedTarget;
+
+      if (
+        choosingHalvePart &&
+        state.selectedSheep.includes(id) &&
+        clickedHalf
+      ) {
+        state.selectedHalves[id] = clickedHalf.dataset.halfCardId;
+        return render();
+      }
+
+      const needsOneOpponentSheep =
+        selected.length === 1 &&
+        ["wheat", "wolf"].includes(selected[0].side);
+
+      if (
+        needsOneOpponentSheep &&
+        ownerId === activePlayerId()
+      ) {
+        return setNotice(
+          "Choose a sheep in an opponent's field.",
+          true
+        );
+      }
+
+      state.selectedTarget = ownerId;
+
+      if (state.selectedSheep.includes(id)) {
+        state.selectedSheep = state.selectedSheep.filter(
+          (item) => item !== id
+        );
+      } else {
+        state.selectedSheep = [id];
+      }
+
+      render();
+    };
+  });
+
+  document.querySelectorAll("[data-half-card-id]").forEach((button) => {
+    button.onclick = (event) => {
+      event.stopPropagation();
+
+      const sheepId = button.dataset.sheepId;
+      const halfId = button.dataset.halfCardId;
+
+      state.selectedHalves[sheepId] = halfId;
+      render();
+    };
+  });
+
+  document.querySelectorAll("[data-discard-id]").forEach((button) => {
+    button.onclick = () => {
+      const id = button.dataset.discardId;
+
+      state.selectedDiscard = state.selectedDiscard.includes(id)
+        ? state.selectedDiscard.filter((item) => item !== id)
+        : [...state.selectedDiscard, id];
+
+      renderDiscardDialog(state.snapshot);
+    };
+  });
+
+  document.querySelectorAll("[data-yoink-card-id]").forEach((button) => {
+    button.onclick = () => {
+      const id = button.dataset.yoinkCardId;
+      const required = state.snapshot.pendingSelection?.cardIds?.length || 0;
+
+      state.selectedYoink = state.selectedYoink.includes(id)
+        ? state.selectedYoink.filter((item) => item !== id)
+        : [...state.selectedYoink, id].slice(-required);
+
+      renderYoinkSelectionDialog(state.snapshot);
+    };
+  });
+
+  bindChallengeSelection();
 }
 function submitSelectedMove() {
   const snapshot = state.snapshot;
